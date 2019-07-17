@@ -60,7 +60,7 @@ func TestParse(t *testing.T) {
 				{
 					Name:      "build",
 					Shell:     "/bin/sh",
-					Detach:    true,
+					Detach:    false,
 					DependsOn: []string{"clone"},
 					Commands: []string{
 						"go build",
@@ -157,6 +157,11 @@ func TestLint(t *testing.T) {
 	p.Steps = []*Step{{Name: "build"}, {Name: ""}}
 	if err := lint(p); err == nil {
 		t.Errorf("Expect error when empty name")
+	}
+
+	p.Steps = []*Step{{Name: "build", Detach: true}}
+	if err := lint(p); err == nil {
+		t.Errorf("Expect error when step detached")
 	}
 }
 

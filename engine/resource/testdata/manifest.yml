@@ -41,7 +41,7 @@ server:
 steps:
 - name: build
   shell: /bin/sh
-  detach: true
+  detach: false
   failure: never
   commands:
   - go build

@@ -52,6 +52,9 @@ func lint(pipeline *Pipeline) error {
 	// ensure pipeline steps are not unique.
 	names := map[string]struct{}{}
 	for _, step := range pipeline.Steps {
+		if step.Detach {
+			return errors.New("Linter: detached steps are not allowed")
+		}
 		if step.Name == "" {
 			return errors.New("Linter: invalid or missing step name")
 		}
