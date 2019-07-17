@@ -1,0 +1,17 @@
+kind: pipeline
+type: ssh
+name: default
+
+clone:
+  disable: true
+
+server:
+  host: localhost
+  user: root
+  password: root
+
+steps:
+- name: build
+  commands:
+  - go build
+  - go test

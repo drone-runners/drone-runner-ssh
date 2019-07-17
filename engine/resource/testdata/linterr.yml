@@ -1,0 +1,15 @@
+---
+kind: pipeline
+type: ssh
+
+server:
+  host: localhost
+  user: root
+  password: root
+
+steps:
+- commands:
+  - go build
+  - go test
+
+...

@@ -1,0 +1,5 @@
+drone-runner-ssh
+drone-runner-ssh.exe
+release/*
+.env
+NOTES*

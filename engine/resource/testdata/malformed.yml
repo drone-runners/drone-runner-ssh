@@ -1,0 +1,8 @@
+---
+kind: pipeline
+type: ssh
+
+steps:
+ foo: bar
+
+...
