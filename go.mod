@@ -12,6 +12,7 @@ require (
 	github.com/drone/runner-go v1.1.1-0.20190716194717-969b4e42cd4b
 	github.com/drone/signal v1.0.0
 	github.com/google/go-cmp v0.3.0
+	github.com/gosimple/slug v1.5.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/joho/godotenv v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -20,6 +21,7 @@ require (
 	github.com/natessilva/dag v0.0.0-20180124060714-7194b8dcc5c4
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pkg/sftp v1.10.1-0.20190613163056-79ae07e7783e
+	github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be // indirect
 	github.com/sirupsen/logrus v1.4.2
 	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58

@@ -19,6 +19,7 @@ import (
 	"github.com/drone/runner-go/secret"
 
 	"github.com/dchest/uniuri"
+	"github.com/gosimple/slug"
 )
 
 // random generator function
@@ -233,7 +234,8 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 
 	// create steps
 	for _, src := range c.Pipeline.Steps {
-		buildpath := join(os, spec.Root, "opt", getExt(os, src.Name))
+		buildslug := slug.Make(src.Name)
+		buildpath := join(os, spec.Root, "opt", getExt(os, buildslug))
 		buildfile := genScript(os, src.Commands)
 
 		cmd, args := getCommand(os, buildpath)
