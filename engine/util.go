@@ -7,6 +7,7 @@ package engine
 import (
 	"fmt"
 	"io"
+	"sort"
 )
 
 // helper function writes a shell command to the io.Writer that
@@ -27,8 +28,13 @@ func writeSecrets(w io.Writer, os string, secrets []*Secret) {
 // helper function writes a shell command to the io.Writer that
 // exports the key value pairs as environment variables.
 func writeEnviron(w io.Writer, os string, envs map[string]string) {
-	for k, v := range envs {
-		writeEnv(w, os, k, v)
+	var keys []string
+	for k := range envs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		writeEnv(w, os, k, envs[k])
 	}
 }
 
