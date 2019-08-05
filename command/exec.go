@@ -6,6 +6,7 @@ package command
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -38,6 +39,9 @@ type execCommand struct {
 	Source  *os.File
 	Environ map[string]string
 	Secrets map[string]string
+	Dump    bool
+	Debug   bool
+	Trace   bool
 	Pretty  bool
 	Procs   int64
 }
@@ -138,6 +142,12 @@ func (c *execCommand) run(*kingpin.ParseContext) error {
 
 	// enable debug logging
 	logrus.SetLevel(logrus.WarnLevel)
+	if c.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+	if c.Trace {
+		logrus.SetLevel(logrus.TraceLevel)
+	}
 	logger.Default = logger.Logrus(
 		logrus.NewEntry(
 			logrus.StandardLogger(),
@@ -150,6 +160,9 @@ func (c *execCommand) run(*kingpin.ParseContext) error {
 		engine.New(),
 		c.Procs,
 	).Exec(ctx, spec, state)
+	if c.Dump {
+		dump(state)
+	}
 	if err != nil {
 		return err
 	}
@@ -158,6 +171,12 @@ func (c *execCommand) run(*kingpin.ParseContext) error {
 		os.Exit(1)
 	}
 	return nil
+}
+
+func dump(v interface{}) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(v)
 }
 
 func registerExec(app *kingpin.Application) {
@@ -177,6 +196,15 @@ func registerExec(app *kingpin.Application) {
 
 	cmd.Flag("environ", "environment variables").
 		StringMapVar(&c.Environ)
+
+	cmd.Flag("debug", "enable debug level logging").
+		BoolVar(&c.Debug)
+
+	cmd.Flag("trace", "enable trace level logging").
+		BoolVar(&c.Trace)
+
+	cmd.Flag("dump", "dump the pipeline state").
+		BoolVar(&c.Dump)
 
 	cmd.Flag("pretty", "pretty print the output").
 		Default(
