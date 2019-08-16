@@ -32,7 +32,7 @@ steps:
   - npm install
   - npm test
 
-- name: notify
+- name: publish
   commands:
   - docker build -t hello-world .
   - docker push hello-world
