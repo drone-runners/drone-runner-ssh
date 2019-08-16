@@ -5,7 +5,7 @@ author: bradrydzewski
 weight: -2
 toc: false
 description: |
-  Overview of the ssh pipelines.
+  Overview of ssh pipelines.
 ---
 
 An `ssh` pipeline is a pipeline that executes shell commands on remote servers using the ssh protocol. This is useful for workloads that need to run directly on the host, or are poorly suited for execution inside containers.
