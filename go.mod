@@ -9,7 +9,7 @@ require (
 	github.com/dchest/uniuri v0.0.0-20160212164326-8902c56451e9
 	github.com/drone/drone-go v1.0.5-0.20190504210458-4d6116b897ba
 	github.com/drone/envsubst v1.0.2
-	github.com/drone/runner-go v1.2.2
+	github.com/drone/runner-go v1.3.1
 	github.com/drone/signal v1.0.0
 	github.com/google/go-cmp v0.3.0
 	github.com/gosimple/slug v1.5.0
