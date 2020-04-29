@@ -79,6 +79,9 @@ func convertStaticEnv(src map[string]*manifest.Variable) map[string]string {
 func convertSecretEnv(src map[string]*manifest.Variable) []*engine.Secret {
 	dst := []*engine.Secret{}
 	for k, v := range src {
+		if v == nil {
+			continue
+		}
 		if strings.TrimSpace(v.Secret) != "" {
 			dst = append(dst, &engine.Secret{
 				Name: v.Secret,
