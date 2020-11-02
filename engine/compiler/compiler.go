@@ -209,6 +209,7 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 					Commit: c.Build.After,
 					Ref:    c.Build.Ref,
 					Remote: c.Repo.HTTPURL,
+					Depth:  c.Pipeline.Clone.Depth,
 				},
 			),
 		)
