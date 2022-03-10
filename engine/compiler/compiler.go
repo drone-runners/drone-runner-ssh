@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/drone-runners/drone-runner-ssh/engine"
-	"github.com/drone-runners/drone-runner-ssh/engine/resource"
+	"github.com/drone-runners/drone-runner-ssh/runtime"
 
-	"github.com/drone/drone-go/drone"
 	"github.com/drone/runner-go/clone"
 	"github.com/drone/runner-go/environ"
+	"github.com/drone/runner-go/environ/provider"
 	"github.com/drone/runner-go/manifest"
 	"github.com/drone/runner-go/secret"
 
@@ -28,43 +28,9 @@ var random = uniuri.New
 // Compiler compiles the Yaml configuration file to an
 // intermediate representation optimized for simple execution.
 type Compiler struct {
-	// Manifest provides the parsed manifest.
-	Manifest *manifest.Manifest
-
-	// Pipeline provides the parsed pipeline. This pipeline is
-	// the compiler source and is converted to the intermediate
-	// representation by the Compile method.
-	Pipeline *resource.Pipeline
-
-	// Build provides the compiler with stage information that
-	// is converted to environment variable format and passed to
-	// each pipeline step. It is also used to clone the commit.
-	Build *drone.Build
-
-	// Stage provides the compiler with stage information that
-	// is converted to environment variable format and passed to
-	// each pipeline step.
-	Stage *drone.Stage
-
-	// Repo provides the compiler with repo information. This
-	// repo information is converted to environment variable
-	// format and passed to each pipeline step. It is also used
-	// to clone the repository.
-	Repo *drone.Repo
-
-	// System provides the compiler with system information that
-	// is converted to environment variable format and passed to
-	// each pipeline step.
-	System *drone.System
-
-	// Environ provides a set of environment varaibles that
+	// Environ provides a set of environment variables that
 	// should be added to each pipeline step by default.
-	Environ map[string]string
-
-	// Netrc provides netrc parameters that can be used by the
-	// default clone step to authenticate to the remote
-	// repository.
-	Netrc *drone.Netrc
+	Environ provider.Provider
 
 	// Secret returns a named secret value that can be injected
 	// into the pipeline step.
@@ -72,38 +38,39 @@ type Compiler struct {
 }
 
 // Compile compiles the configuration file.
-func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
-	os := c.Pipeline.Platform.OS
+func (c *Compiler) Compile(ctx context.Context, args runtime.CompilerArgs) *engine.Spec {
+	pipeline := args.Pipeline
+	os := pipeline.Platform.OS
 
 	spec := &engine.Spec{
 		Platform: engine.Platform{
-			OS:      c.Pipeline.Platform.OS,
-			Arch:    c.Pipeline.Platform.Arch,
-			Variant: c.Pipeline.Platform.Variant,
-			Version: c.Pipeline.Platform.Version,
+			OS:      pipeline.Platform.OS,
+			Arch:    pipeline.Platform.Arch,
+			Variant: pipeline.Platform.Variant,
+			Version: pipeline.Platform.Version,
 		},
 		Server: engine.Server{
-			Hostname: c.Pipeline.Server.Host.Value,
-			Username: c.Pipeline.Server.User.Value,
-			Password: c.Pipeline.Server.Password.Value,
-			SSHKey:   c.Pipeline.Server.SSHKey.Value,
+			Hostname: pipeline.Server.Host.Value,
+			Username: pipeline.Server.User.Value,
+			Password: pipeline.Server.Password.Value,
+			SSHKey:   pipeline.Server.SSHKey.Value,
 		},
 	}
 
 	// maybe load the server host variable from secret
-	if s, ok := c.findSecret(ctx, c.Pipeline.Server.Host.Secret); ok {
+	if s, ok := c.findSecret(ctx, args, pipeline.Server.Host.Secret); ok {
 		spec.Server.Hostname = s
 	}
 	// maybe load the server username variable from secret
-	if s, ok := c.findSecret(ctx, c.Pipeline.Server.User.Secret); ok {
+	if s, ok := c.findSecret(ctx, args, pipeline.Server.User.Secret); ok {
 		spec.Server.Username = s
 	}
 	// maybe load the server password variable from secret
-	if s, ok := c.findSecret(ctx, c.Pipeline.Server.Password.Secret); ok {
+	if s, ok := c.findSecret(ctx, args, pipeline.Server.Password.Secret); ok {
 		spec.Server.Password = s
 	}
 	// maybe load the server ssh_key variable from secret
-	if s, ok := c.findSecret(ctx, c.Pipeline.Server.SSHKey.Secret); ok {
+	if s, ok := c.findSecret(ctx, args, pipeline.Server.SSHKey.Secret); ok {
 		spec.Server.SSHKey = s
 	}
 
@@ -153,14 +120,14 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 	})
 
 	// creates the netrc file
-	if c.Netrc != nil && c.Netrc.Password != "" {
+	if args.Netrc != nil && args.Netrc.Password != "" {
 		netrcfile := getNetrc(os)
 		netrcpath := join(os, homedir, netrcfile)
 		netrcdata := fmt.Sprintf(
 			"machine %s login %s password %s",
-			c.Netrc.Machine,
-			c.Netrc.Login,
-			c.Netrc.Password,
+			args.Netrc.Machine,
+			args.Netrc.Login,
+			args.Netrc.Password,
 		)
 		spec.Files = append(spec.Files, &engine.File{
 			Path: netrcpath,
@@ -169,22 +136,30 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 		})
 	}
 
+	// list the global environment variables
+	globals, _ := c.Environ.List(ctx, &provider.Request{
+		Build: args.Build,
+		Repo:  args.Repo,
+	})
+
 	// create the default environment variables.
 	envs := environ.Combine(
-		c.Environ,
-		c.Build.Params,
+		provider.ToMap(
+			provider.FilterUnmasked(globals),
+		),
+		args.Build.Params,
 		environ.Proxy(),
-		environ.System(c.System),
-		environ.Repo(c.Repo),
-		environ.Build(c.Build),
-		environ.Stage(c.Stage),
-		environ.Link(c.Repo, c.Build, c.System),
+		environ.System(args.System),
+		environ.Repo(args.Repo),
+		environ.Build(args.Build),
+		environ.Stage(args.Stage),
+		environ.Link(args.Repo, args.Build, args.System),
 		clone.Environ(clone.Config{
-			SkipVerify: c.Pipeline.Clone.SkipVerify,
-			Trace:      c.Pipeline.Clone.Trace,
+			SkipVerify: pipeline.Clone.SkipVerify,
+			Trace:      pipeline.Clone.Trace,
 			User: clone.User{
-				Name:  c.Build.AuthorName,
-				Email: c.Build.AuthorEmail,
+				Name:  args.Build.AuthorName,
+				Email: args.Build.AuthorEmail,
 			},
 		}),
 		// TODO(bradrydzewski) windows variable HOMEDRIVE
@@ -200,16 +175,16 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 	)
 
 	// create clone step, maybe
-	if c.Pipeline.Clone.Disable == false {
+	if pipeline.Clone.Disable == false {
 		clonepath := join(os, spec.Root, "opt", getExt(os, "clone"))
 		clonefile := genScript(os,
 			clone.Commands(
 				clone.Args{
-					Branch: c.Build.Target,
-					Commit: c.Build.After,
-					Ref:    c.Build.Ref,
-					Remote: c.Repo.HTTPURL,
-					Depth:  c.Pipeline.Clone.Depth,
+					Branch: args.Build.Target,
+					Commit: args.Build.After,
+					Ref:    args.Build.Ref,
+					Remote: args.Repo.HTTPURL,
+					Depth:  args.Pipeline.Clone.Depth,
 				},
 			),
 		)
@@ -234,15 +209,15 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 	}
 
 	// create steps
-	for _, src := range c.Pipeline.Steps {
+	for _, src := range pipeline.Steps {
 		buildslug := slug.Make(src.Name)
 		buildpath := join(os, spec.Root, "opt", getExt(os, buildslug))
 		buildfile := genScript(os, src.Commands)
 
-		cmd, args := getCommand(os, buildpath)
+		cmd, cmdArgs := getCommand(os, buildpath)
 		dst := &engine.Step{
 			Name:      src.Name,
-			Args:      args,
+			Args:      cmdArgs,
 			Command:   cmd,
 			Detach:    src.Detach,
 			DependsOn: src.DependsOn,
@@ -279,14 +254,14 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 		// if the pipeline step has unmet conditions the step is
 		// automatically skipped.
 		if !src.When.Match(manifest.Match{
-			Action:   c.Build.Action,
-			Cron:     c.Build.Cron,
-			Ref:      c.Build.Ref,
-			Repo:     c.Repo.Slug,
-			Instance: c.System.Host,
-			Target:   c.Build.Deploy,
-			Event:    c.Build.Event,
-			Branch:   c.Build.Target,
+			Action:   args.Build.Action,
+			Cron:     args.Build.Cron,
+			Ref:      args.Build.Ref,
+			Repo:     args.Repo.Slug,
+			Instance: args.System.Host,
+			Target:   args.Build.Deploy,
+			Event:    args.Build.Event,
+			Branch:   args.Build.Target,
 		}) {
 			dst.RunPolicy = engine.RunNever
 		}
@@ -294,15 +269,30 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 
 	if isGraph(spec) == false {
 		configureSerial(spec)
-	} else if c.Pipeline.Clone.Disable == false {
+	} else if pipeline.Clone.Disable == false {
 		configureCloneDeps(spec)
-	} else if c.Pipeline.Clone.Disable == true {
+	} else if pipeline.Clone.Disable == true {
 		removeCloneDeps(spec)
+	}
+
+	// HACK: append masked global variables to secrets
+	// this ensures the environment variable values are
+	// masked when printed to the console.
+	masked := provider.FilterMasked(globals)
+	for _, step := range spec.Steps {
+		for _, g := range masked {
+			step.Secrets = append(step.Secrets, &engine.Secret{
+				Name: g.Name,
+				Data: []byte(g.Data),
+				Mask: g.Mask,
+				Env:  g.Name,
+			})
+		}
 	}
 
 	for _, step := range spec.Steps {
 		for _, s := range step.Secrets {
-			secret, ok := c.findSecret(ctx, s.Name)
+			secret, ok := c.findSecret(ctx, args, s.Name)
 			if ok {
 				s.Data = []byte(secret)
 			}
@@ -314,15 +304,25 @@ func (c *Compiler) Compile(ctx context.Context) *engine.Spec {
 
 // helper function attempts to find and return the named secret.
 // from the secret provider.
-func (c *Compiler) findSecret(ctx context.Context, name string) (s string, ok bool) {
+func (c *Compiler) findSecret(ctx context.Context, args runtime.CompilerArgs, name string) (s string, ok bool) {
 	if name == "" {
 		return
 	}
-	found, _ := c.Secret.Find(ctx, &secret.Request{
+
+	// source secrets from the global secret provider
+	// and the repository secret provider.
+	provider := secret.Combine(
+		args.Secret,
+		c.Secret,
+	)
+
+	// TODO return an error to the caller if the provider
+	// returns an error.
+	found, _ := provider.Find(ctx, &secret.Request{
 		Name:  name,
-		Build: c.Build,
-		Repo:  c.Repo,
-		Conf:  c.Manifest,
+		Build: args.Build,
+		Repo:  args.Repo,
+		Conf:  args.Manifest,
 	})
 	if found == nil {
 		return

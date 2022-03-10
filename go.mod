@@ -1,6 +1,6 @@
 module github.com/drone-runners/drone-runner-ssh
 
-go 1.13
+go 1.16
 
 require (
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
@@ -9,7 +9,7 @@ require (
 	github.com/dchest/uniuri v0.0.0-20160212164326-8902c56451e9
 	github.com/drone/drone-go v1.7.1
 	github.com/drone/envsubst v1.0.2
-	github.com/drone/runner-go v1.3.1
+	github.com/drone/runner-go v1.7.0
 	github.com/drone/signal v1.0.0
 	github.com/google/go-cmp v0.3.0
 	github.com/gosimple/slug v1.5.0
@@ -26,4 +26,6 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
