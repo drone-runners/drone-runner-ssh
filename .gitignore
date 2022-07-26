@@ -3,3 +3,4 @@ drone-runner-ssh.exe
 release/*
 .env
 NOTES*
+.vscode/

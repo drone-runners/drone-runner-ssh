@@ -5,6 +5,7 @@
 package engine
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"sort"
@@ -41,12 +42,14 @@ func writeEnviron(w io.Writer, os string, envs map[string]string) {
 // helper function writes a shell command to the io.Writer that
 // exports and key value pair as an environment variable.
 func writeEnv(w io.Writer, os, key, value string) {
+	// we are encoding the value as base64 to avoid any accidental escaping
+	encodedValue := base64.StdEncoding.EncodeToString([]byte(value))
 	switch os {
 	case "windows":
-		fmt.Fprintf(w, "$Env:%s = %q", key, value)
+		fmt.Fprintf(w, `$Env:%s = "$([Text.Encoding]::Utf8.GetString([Convert]::FromBase64String('%s')))"`, key, encodedValue)
 		fmt.Fprintln(w)
 	default:
-		fmt.Fprintf(w, "export %s=%q", key, value)
+		fmt.Fprintf(w, `export %s="$(echo %s | base64 -d)"`, key, encodedValue)
 		fmt.Fprintln(w)
 	}
 }
