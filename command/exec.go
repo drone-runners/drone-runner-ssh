@@ -18,13 +18,15 @@ import (
 	"github.com/drone-runners/drone-runner-ssh/engine/compiler"
 	"github.com/drone-runners/drone-runner-ssh/engine/resource"
 	"github.com/drone-runners/drone-runner-ssh/runtime"
+
 	"github.com/drone/drone-go/drone"
 	"github.com/drone/envsubst"
 	"github.com/drone/runner-go/environ"
+	"github.com/drone/runner-go/environ/provider"
 	"github.com/drone/runner-go/logger"
 	"github.com/drone/runner-go/manifest"
 	"github.com/drone/runner-go/pipeline"
-	"github.com/drone/runner-go/pipeline/console"
+	"github.com/drone/runner-go/pipeline/streamer/console"
 	"github.com/drone/runner-go/secret"
 	"github.com/drone/signal"
 
@@ -95,6 +97,11 @@ func (c *execCommand) run(*kingpin.ParseContext) error {
 
 	// compile the pipeline to an intermediate representation.
 	comp := &compiler.Compiler{
+		Environ: provider.Static(c.Environ),
+		Secret:  secret.StaticVars(c.Secrets),
+	}
+
+	args := runtime.CompilerArgs{
 		Pipeline: resource,
 		Manifest: manifest,
 		Build:    c.Build,
@@ -102,10 +109,8 @@ func (c *execCommand) run(*kingpin.ParseContext) error {
 		Repo:     c.Repo,
 		Stage:    c.Stage,
 		System:   c.System,
-		Environ:  c.Environ,
-		Secret:   secret.StaticVars(c.Secrets),
 	}
-	spec := comp.Compile(nocontext)
+	spec := comp.Compile(nocontext, args)
 
 	// create a step object for each pipeline step.
 	for _, step := range spec.Steps {
