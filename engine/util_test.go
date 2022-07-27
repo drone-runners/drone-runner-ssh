@@ -24,14 +24,14 @@ func TestWriteSecrets(t *testing.T) {
 	sec := []*Secret{{Env: "a", Data: []byte("b")}}
 	writeSecrets(buf, "linux", sec)
 
-	want := "export a=\"b\"\n"
+	want := `export a="$(echo Yg== | base64 -d)"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("Want secret script %q, got %q", want, got)
 	}
 
 	buf.Reset()
 	writeSecrets(buf, "windows", sec)
-	want = "$Env:a = \"b\"\n"
+	want = `$Env:a = "$([Text.Encoding]::Utf8.GetString([Convert]::FromBase64String('Yg==')))"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("Want secret script %q, got %q", want, got)
 	}
@@ -42,14 +42,14 @@ func TestWriteEnv(t *testing.T) {
 	env := map[string]string{"a": "b", "c": "d"}
 	writeEnviron(buf, "linux", env)
 
-	want := "export a=\"b\"\nexport c=\"d\"\n"
+	want := `export a="$(echo Yg== | base64 -d)"` + "\n" + `export c="$(echo ZA== | base64 -d)"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("Want environment script %q, got %q", want, got)
 	}
 
 	buf.Reset()
 	writeEnviron(buf, "windows", env)
-	want = "$Env:a = \"b\"\n$Env:c = \"d\"\n"
+	want = `$Env:a = "$([Text.Encoding]::Utf8.GetString([Convert]::FromBase64String('Yg==')))"` + "\n" + `$Env:c = "$([Text.Encoding]::Utf8.GetString([Convert]::FromBase64String('ZA==')))"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("Want environment script %q, got %q", want, got)
 	}
