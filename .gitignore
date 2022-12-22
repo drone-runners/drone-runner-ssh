@@ -4,3 +4,4 @@ release/*
 .env
 NOTES*
 .vscode/
+drone
