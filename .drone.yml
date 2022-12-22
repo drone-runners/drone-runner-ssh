@@ -1,5 +1,5 @@
 kind: pipeline
-name: default
+name: testing
 type: vm
 
 pool:
@@ -10,75 +10,127 @@ platform:
   arch: amd64
 
 steps:
-- name: test
-  image: golang:1.13
-  commands:
-  - go test -cover ./...
-  volumes:
-  - name: go
-    path: /go
+  - name: test
+    image: golang:1.13
+    commands:
+      - go test -cover ./...
 
-- name: build
-  image: golang:1.13
-  commands:
-  - sh scripts/build.sh
-  volumes:
-  - name: go
-    path: /go
-  when:
-    event:
-    - push
-    - tag
+---
+kind: pipeline
+type: vm
+name: linux-amd64
 
-- name: publish_amd64
-  image: plugins/docker
-  pull: if-not-exists
-  settings:
-    repo: drone/drone-runner-ssh
-    auto_tag: true
-    auto_tag_suffix: linux-amd64
-    dockerfile: docker/Dockerfile.linux.amd64
-    username:
-      from_secret: docker_username
-    password:
-      from_secret: docker_password
-  when:
-    ref:
+platform:
+  os: linux
+  arch: amd64
+
+pool:
+  use: ubuntu
+
+steps:
+  - name: build
+    image: golang:1.13
+    commands:
+      - sh scripts/build.sh
+  - name: publish_amd64
+    image: plugins/docker
+    pull: if-not-exists
+    settings:
+      repo: drone/drone-runner-ssh
+      auto_tag: true
+      auto_tag_suffix: linux-amd64
+      dockerfile: docker/Dockerfile.linux.amd64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      ref:
+        - refs/heads/master
+        - refs/tags/**
+
+depends_on:
+  - testing
+  
+trigger:
+  ref:
     - refs/heads/master
-    - refs/tags/*
+    - refs/tags/**
+    - refs/pull/**
 
-- name: publish_arm64
-  image: plugins/docker
-  pull: if-not-exists
-  settings:
-    repo: drone/drone-runner-ssh
-    auto_tag: true
-    auto_tag_suffix: linux-arm64
-    dockerfile: docker/Dockerfile.linux.arm64
-    username:
-      from_secret: docker_username
-    password:
-      from_secret: docker_password
-  when:
-    ref:
+---
+kind: pipeline
+type: vm
+name: linux-arm64
+
+platform:
+  os: linux
+  arch: arm64
+
+pool:
+  use: ubuntu_arm64
+
+steps:
+  - name: build
+    image: golang:1.13
+    commands:
+      - sh scripts/build.sh
+    volumes:
+      - name: go
+        path: /go
+  - name: publish_arm64
+    image: plugins/docker
+    pull: if-not-exists
+    settings:
+      repo: drone/drone-runner-ssh
+      auto_tag: true
+      auto_tag_suffix: linux-arm64
+      dockerfile: docker/Dockerfile.linux.arm64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      ref:
+        - refs/heads/master
+        - refs/tags/**
+
+depends_on:
+  - testing
+
+trigger:
+  ref:
     - refs/heads/master
-    - refs/tags/*
+    - refs/tags/**
+    - refs/pull/**
 
-- name: manifest
-  image: plugins/manifest
-  settings:
-    spec: docker/manifest.tmpl
-    auto_tag: true
-    ignore_missing: true
-    password:
-      from_secret: docker_password
-    username:
-      from_secret: docker_username
-  when:
-    ref:
+---
+kind: pipeline
+type: vm
+name: manifest
+platform:
+  os: linux
+  arch: amd64
+pool:
+  use: ubuntu
+
+steps:
+  - name: manifest
+    image: plugins/manifest
+    settings:
+      spec: docker/manifest.tmpl
+      auto_tag: true
+      ignore_missing: true
+      password:
+        from_secret: docker_password
+      username:
+        from_secret: docker_username
+
+depends_on:
+  - linux-amd64
+  - linux-arm64
+
+trigger:
+  ref:
     - refs/heads/master
-    - refs/tags/*
-
-volumes:
-- name: go
-  temp: {}
+    - refs/tags/**
